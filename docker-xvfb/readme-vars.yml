@@ -1,0 +1,8 @@
+---
+
+# project information
+project_name: xvfb
+full_custom_readme: |
+  {% raw -%}
+  Up to date documentation is available [here](https://github.com/linuxserver/docker-xvfb/blob/master/README.md).
+  {%- endraw %}
