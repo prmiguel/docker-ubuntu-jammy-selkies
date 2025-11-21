@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM lscr.io/linuxserver/xvfb:debianbookworm AS xvfb
+FROM ghcr.io/prmiguel/docker-ubuntu-jammy-selkies-xvfb:main AS xvfb
 FROM ghcr.io/linuxserver/baseimage-alpine:3.22 AS frontend
 
 RUN \
@@ -41,7 +41,7 @@ RUN \
   done
 
 # Runtime stage
-FROM ghcr.io/linuxserver/baseimage-debian:bookworm
+FROM ghcr.io/prmiguel/docker-ubuntu-jammy-selkies-base:main
 
 # set version label
 ARG BUILD_DATE
@@ -65,16 +65,23 @@ RUN \
   echo "**** dev deps ****" && \
   apt-get update && \
   DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    python3-dev && \
+    python3-dev
+RUN \
   echo "**** enable locales ****" && \
   sed -i \
     '/locale/d' \
-    /etc/dpkg/dpkg.cfg.d/docker && \
+    /etc/dpkg/dpkg.cfg.d/excludes && \
   echo "**** install deps ****" && \
-  curl -fsSL https://download.docker.com/linux/debian/gpg | tee /usr/share/keyrings/docker.asc >/dev/null && \
-  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list && \
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | tee /usr/share/keyrings/docker.asc >/dev/null && \
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.asc] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list && \
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-  apt-get update && \
+  apt-get update
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y sudo software-properties-common
+RUN sudo add-apt-repository ppa:kisak/turtle && sudo apt update
+
+
+RUN \
   DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     breeze-cursor-theme \
     ca-certificates \
@@ -88,8 +95,6 @@ RUN \
     docker-compose-plugin \
     dunst \
     file \
-    firmware-linux-nonfree \
-    firmware-misc-nonfree \
     fonts-noto-cjk \
     fonts-noto-color-emoji \
     fonts-noto-core \
@@ -111,6 +116,7 @@ RUN \
     libglu1-mesa \
     libgnutls30 \
     libgtk-3.0 \
+    libjpeg-turbo8 \
     libnginx-mod-http-fancyindex \
     libnotify-bin \
     libnss3 \
@@ -120,6 +126,7 @@ RUN \
     libtasn1-6 \
     libvulkan1 \
     libx11-6 \
+    libx264-163 \
     libxau6 \
     libxcb1 \
     libxcb-icccm4 \
@@ -146,6 +153,7 @@ RUN \
     openssl \
     pciutils \
     procps \
+    psmisc \
     pulseaudio \
     pulseaudio-utils \
     python3 \
@@ -183,8 +191,6 @@ RUN \
     xutils \
     xvfb \
     zlib1g && \
-  apt install -t bookworm-backports -y \
-    mesa-libgallium && \
   echo "**** install selkies ****" && \
   SELKIES_RELEASE=$(curl -sX GET "https://api.github.com/repos/selkies-project/selkies/releases/latest" \
     | awk '/tag_name/{print $4;exit}' FS='[""]') && \
@@ -194,6 +200,7 @@ RUN \
   cd /tmp && \
   tar xf selkies.tar.gz && \
   cd selkies-* && \
+  sed -i '/cryptography/d' pyproject.toml && \
   python3 \
     -m venv \
     --system-site-packages \
@@ -285,3 +292,8 @@ COPY --from=xvfb / /
 # ports and volumes
 EXPOSE 3000 3001
 VOLUME /config
+
+RUN \
+  apt update && \
+  DEBIAN_FRONTEND=noninteractive sudo apt install -y \
+  libva-drm2 libva-x11-2
